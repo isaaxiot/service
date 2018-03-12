@@ -153,6 +153,10 @@ func (s *systemd) Restart() error {
 	return run("systemctl", "restart", s.Name+".service")
 }
 
+func (s *systemd) Status() error {
+	return checkStatus("systemctl", []string{"status", s.Name + ".service"}, "active (running)", "not-found")
+}
+
 const systemdScript = `[Unit]
 Description={{.Description}}
 ConditionFileIsExecutable={{.Path|cmdEscape}}

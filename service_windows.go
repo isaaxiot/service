@@ -380,10 +380,36 @@ func (ws *windowsService) Logger(errs chan<- error) (Logger, error) {
 	}
 	return ws.SystemLogger(errs)
 }
+
 func (ws *windowsService) SystemLogger(errs chan<- error) (Logger, error) {
 	el, err := eventlog.Open(ws.Name)
 	if err != nil {
 		return nil, err
 	}
 	return WindowsLogger{el, errs}, nil
+}
+
+func (s *windowsService) Status() error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer m.Disconnect()
+
+	s, err := m.OpenService(ws.Name)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	status, err := s.Query()
+	if err != nil {
+		return err
+	}
+
+	if status != svc.Running {
+		return ErrServiceIsNotRunning
+	}
+
+	return nil
 }

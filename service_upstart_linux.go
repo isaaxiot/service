@@ -197,6 +197,10 @@ func (s *upstart) Restart() error {
 	return s.Start()
 }
 
+func (s *upstart) Status() error {
+	return checkStatus("initctl", []string{"status", s.Name}, "start/running", "Unknown job")
+}
+
 // The upstart script should stop with an INT or the Go runtime will terminate
 // the program before the Stop handler can run.
 const upstartScript = `# {{.Description}}

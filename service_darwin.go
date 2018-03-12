@@ -135,12 +135,16 @@ func (s *darwinLaunchdService) Install() error {
 
 		KeepAlive, RunAtLoad bool
 		SessionCreate        bool
+		StandardOutPath      string
+		StandardErrorPath    string
 	}{
-		Config:        s.Config,
-		Path:          path,
-		KeepAlive:     s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
-		RunAtLoad:     s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
-		SessionCreate: s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
+		Config:            s.Config,
+		Path:              path,
+		KeepAlive:         s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
+		RunAtLoad:         s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
+		SessionCreate:     s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
+		StandardOutPath:   s.Option.string(optionStandardOutPath, ""),
+		StandardErrorPath: s.Option.string(optionStandardErrorPath, ""),
 	}
 
 	functions := template.FuncMap{
@@ -211,8 +215,26 @@ func (s *darwinLaunchdService) Logger(errs chan<- error) (Logger, error) {
 	}
 	return s.SystemLogger(errs)
 }
+
 func (s *darwinLaunchdService) SystemLogger(errs chan<- error) (Logger, error) {
 	return newSysLogger(s.Name, errs)
+}
+
+func (s *darwinLaunchdService) Status() error {
+	err := checkStatus("launchctl", []string{"list", s.Name}, "\"PID\"", "not find service")
+
+	// Check if this is really not installed
+	if err == ErrServiceIsNotInstalled {
+		confPath, err := s.getServiceFilePath()
+		if err != nil {
+			return err
+		}
+		_, err = os.Stat(confPath)
+		if err == nil {
+			return ErrServiceIsNotRunning
+		}
+	}
+	return err
 }
 
 var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
@@ -231,6 +253,8 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
 {{if .UserName}}<key>UserName</key><string>{{html .UserName}}</string>{{end}}
 {{if .ChRoot}}<key>RootDirectory</key><string>{{html .ChRoot}}</string>{{end}}
 {{if .WorkingDirectory}}<key>WorkingDirectory</key><string>{{html .WorkingDirectory}}</string>{{end}}
+{{if .StandardOutPath}}<key>StandardOutPath</key><string>{{html .StandardOutPath}}</string>{{end}}
+{{if .StandardErrorPath}}<key>StandardErrorPath</key><string>{{html .StandardErrorPath}}</string>{{end}}
 <key>SessionCreate</key><{{bool .SessionCreate}}/>
 <key>KeepAlive</key><{{bool .KeepAlive}}/>
 <key>RunAtLoad</key><{{bool .RunAtLoad}}/>

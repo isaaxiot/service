@@ -117,6 +117,7 @@ func (s *sysv) Logger(errs chan<- error) (Logger, error) {
 	}
 	return s.SystemLogger(errs)
 }
+
 func (s *sysv) SystemLogger(errs chan<- error) (Logger, error) {
 	return newSysLogger(s.Name, errs)
 }
@@ -151,6 +152,10 @@ func (s *sysv) Restart() error {
 	}
 	time.Sleep(50 * time.Millisecond)
 	return s.Start()
+}
+
+func (s *sysv) Status() error {
+	return checkStatus("service", []string{s.Name, "status"}, "is running", "unrecognized service")
 }
 
 const sysvScript = `#!/bin/sh
