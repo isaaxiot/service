@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"syscall"
 	"text/template"
 	"time"
@@ -71,6 +72,19 @@ type darwinLaunchdService struct {
 	userService bool
 }
 
+// Is a service installed
+func (s *darwinLaunchdService) IsInstalled() bool {
+	confPath, err := s.getServiceFilePath()
+	if err != nil {
+		return false
+	}
+
+	if _, err := os.Stat(confPath); err == nil {
+		return true
+	}
+	return false
+}
+
 func (s *darwinLaunchdService) String() string {
 	if len(s.DisplayName) > 0 {
 		return s.DisplayName
@@ -108,15 +122,14 @@ func (s *darwinLaunchdService) Install() error {
 	if err != nil {
 		return err
 	}
-	_, err = os.Stat(confPath)
-	if err == nil {
+
+	if s.IsInstalled() {
 		return fmt.Errorf("Init already exists: %s", confPath)
 	}
 
 	if s.userService {
 		// Ensure that ~/Library/LaunchAgents exists.
-		err = os.MkdirAll(filepath.Dir(confPath), 0700)
-		if err != nil {
+		if err := os.MkdirAll(filepath.Dir(confPath), 0700); err != nil {
 			return err
 		}
 	}
@@ -130,6 +143,17 @@ func (s *darwinLaunchdService) Install() error {
 	path, err := s.execPath()
 	if err != nil {
 		return err
+	}
+
+	cmd := strings.Split(path, " ")
+	if len(cmd) > 1 {
+		path = cmd[0]
+		s.Config.Arguments = append(cmd[1:], s.Config.Arguments...)
+	}
+	if filepath.Base(path) == path { //check IsAbs
+		if newpath, err := exec.LookPath(path); err == nil {
+			path = newpath
+		}
 	}
 
 	var to = &struct {
@@ -247,6 +271,10 @@ func (s *darwinLaunchdService) checkRunning() (int, error) {
 }
 
 func (s *darwinLaunchdService) Status() (string, error) {
+	if !s.IsInstalled() {
+		return "", ErrServiceIsNotInstalled
+	}
+
 	pid, err := s.checkRunning()
 	if err != nil {
 		return "", err
