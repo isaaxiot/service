@@ -85,11 +85,13 @@ const (
 
 // Config provides the setup for a Service. The Name field is required.
 type Config struct {
-	Name        string   // Required name of the service. No spaces suggested.
-	DisplayName string   // Display name, spaces allowed.
-	Description string   // Long description of service.
-	UserName    string   // Run as username.
-	Arguments   []string // Run with arguments.
+	Name        string            // Required name of the service. No spaces suggested.
+	DisplayName string            // Display name, spaces allowed.
+	Description string            // Long description of service.
+	UserName    string            // Run as username.
+	Arguments   []string          // Run with arguments.
+	Envs        map[string]string // Environment variables map.
+	EnvFile     string            // Environment variables as a file.
 
 	// Optional field to specify the executable for service.
 	// If empty the current executable is used.
@@ -331,7 +333,7 @@ type Service interface {
 
 	// Status returns nil if the given service is running.
 	// Will return an error if the service is not running or is not present.
-	Status() error
+	Status() (string, error)
 }
 
 // ControlAction list valid string texts to use in Control.
@@ -340,6 +342,7 @@ var ControlAction = [6]string{"start", "stop", "restart", "install", "uninstall"
 // Control issues control functions to the service from a given action string.
 func Control(s Service, action string) error {
 	var err error
+	var status string
 	switch action {
 	case ControlAction[0]:
 		err = s.Start()
@@ -352,7 +355,8 @@ func Control(s Service, action string) error {
 	case ControlAction[4]:
 		err = s.Uninstall()
 	case ControlAction[5]:
-		err = s.Status()
+		status, err = s.Status()
+		fmt.Println(status)
 	default:
 		err = fmt.Errorf("Unknown action %s", action)
 	}

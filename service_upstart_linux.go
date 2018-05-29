@@ -197,8 +197,34 @@ func (s *upstart) Restart() error {
 	return s.Start()
 }
 
-func (s *upstart) Status() error {
-	return checkStatus("initctl", []string{"status", s.Name}, "start/running", "Unknown job")
+// Check service is running
+func (s *upstart) checkRunning() (int, error) {
+	output, err := exec.Command("status", s.Name).Output()
+	if err != nil {
+		return -1, err
+	}
+	if matched, err := regexp.MatchString(s.Name+" start/running", string(output)); err == nil && matched {
+		reg := regexp.MustCompile("process ([0-9]+)")
+		data := reg.FindStringSubmatch(string(output))
+		if len(data) > 1 {
+			return strconv.Atoi(data[1])
+		}
+		return -1, nil
+	}
+	return -1, ErrServiceIsNotRunning
+}
+
+func (s *upstart) PID() (int, error) {
+	return s.checkRunning()
+}
+
+// Status - Get service status
+func (s *upstart) Status() (string, error) {
+	pid, err := s.checkRunning()
+	if err != nil {
+		return "", err
+	}
+	return "(pid: " + strconv.Itoa(pid) + ")", nil
 }
 
 // The upstart script should stop with an INT or the Go runtime will terminate

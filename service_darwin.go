@@ -8,9 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"syscall"
 	"text/template"
 	"time"
@@ -176,6 +179,7 @@ func (s *darwinLaunchdService) Start() error {
 	}
 	return run("launchctl", "load", confPath)
 }
+
 func (s *darwinLaunchdService) Stop() error {
 	confPath, err := s.getServiceFilePath()
 	if err != nil {
@@ -183,6 +187,7 @@ func (s *darwinLaunchdService) Stop() error {
 	}
 	return run("launchctl", "unload", confPath)
 }
+
 func (s *darwinLaunchdService) Restart() error {
 	err := s.Stop()
 	if err != nil {
@@ -220,21 +225,33 @@ func (s *darwinLaunchdService) SystemLogger(errs chan<- error) (Logger, error) {
 	return newSysLogger(s.Name, errs)
 }
 
-func (s *darwinLaunchdService) Status() error {
-	err := checkStatus("launchctl", []string{"list", s.Name}, "\"PID\"", "not find service")
+func (s *darwinLaunchdService) PID() (int, error) {
+	return s.checkRunning()
+}
 
-	// Check if this is really not installed
-	if err == ErrServiceIsNotInstalled {
-		confPath, err := s.getServiceFilePath()
-		if err != nil {
-			return err
-		}
-		_, err = os.Stat(confPath)
-		if err == nil {
-			return ErrServiceIsNotRunning
-		}
+// Check service is running
+func (s *darwinLaunchdService) checkRunning() (int, error) {
+	output, err := exec.Command("launchctl", "list", s.Name).Output()
+	if err != nil {
+		return -1, err
 	}
-	return err
+	if matched, err := regexp.MatchString(s.Name, string(output)); err == nil && matched {
+		reg := regexp.MustCompile("PID\" = ([0-9]+);")
+		data := reg.FindStringSubmatch(string(output))
+		if len(data) > 1 {
+			return strconv.Atoi(data[1])
+		}
+		return 0, nil
+	}
+	return -1, ErrServiceIsNotRunning
+}
+
+func (s *darwinLaunchdService) Status() (string, error) {
+	pid, err := s.checkRunning()
+	if err != nil {
+		return "", err
+	}
+	return "running (pid: " + strconv.Itoa(pid) + ")", nil
 }
 
 var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
@@ -243,6 +260,13 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
 <plist version='1.0'>
 <dict>
 <key>Label</key><string>{{html .Name}}</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+{{ range $key, $value := .Config.Envs }}<key>{{ $key }}</key>
+        <string>{{ $value }}</string>
+{{ end }}
+    </dict>
+
 <key>ProgramArguments</key>
 <array>
         <string>{{html .Path}}</string>

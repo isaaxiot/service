@@ -8,7 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"regexp"
+	"strconv"
 	"syscall"
 	"text/template"
 )
@@ -52,6 +55,7 @@ func (s *systemd) configPath() (cp string, err error) {
 	cp = "/etc/systemd/system/" + s.Config.Name + ".service"
 	return
 }
+
 func (s *systemd) template() *template.Template {
 	return template.Must(template.New("").Funcs(tf).Parse(systemdScript))
 }
@@ -122,6 +126,7 @@ func (s *systemd) Logger(errs chan<- error) (Logger, error) {
 	}
 	return s.SystemLogger(errs)
 }
+
 func (s *systemd) SystemLogger(errs chan<- error) (Logger, error) {
 	return newSysLogger(s.Name, errs)
 }
@@ -153,8 +158,32 @@ func (s *systemd) Restart() error {
 	return run("systemctl", "restart", s.Name+".service")
 }
 
-func (s *systemd) Status() error {
-	return checkStatus("systemctl", []string{"status", s.Name + ".service"}, "active (running)", "not-found")
+func (s *systemd) PID() (int, error) {
+	return s.checkRunning()
+}
+
+func (s *systemd) checkRunning() (int, error) {
+	out, err := exec.Command("systemctl", "status", s.Name+".service").Output()
+	if err != nil {
+		return -1, err
+	}
+	if matched, err := regexp.MatchString("Active: active", string(out)); err == nil && matched {
+		reg := regexp.MustCompile("Main PID: ([0-9]+)")
+		data := reg.FindStringSubmatch(string(out))
+		if len(data) > 1 {
+			return strconv.Atoi(data[1])
+		}
+		return -1, nil
+	}
+	return -1, ErrServiceIsNotRunning
+}
+
+func (s *systemd) Status() (string, error) {
+	pid, err := s.checkRunning()
+	if err != nil {
+		return "", err
+	}
+	return "running (pid: " + strconv.Itoa(pid) + ")", nil
 }
 
 const systemdScript = `[Unit]

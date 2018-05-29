@@ -8,7 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"regexp"
+	"strconv"
 	"syscall"
 	"text/template"
 	"time"
@@ -154,8 +157,45 @@ func (s *sysv) Restart() error {
 	return s.Start()
 }
 
-func (s *sysv) Status() error {
-	return checkStatus("service", []string{s.Name, "status"}, "is running", "unrecognized service")
+// Check service is running
+func (s *sysv) checkRunning() (int, error) {
+	output, err := exec.Command("service", s.Name, "status").Output()
+	if err != nil {
+		return -1, err
+	}
+	if matched, err := regexp.MatchString(s.Name, string(output)); err == nil && matched {
+		reg := regexp.MustCompile("pid  ([0-9]+)")
+		data := reg.FindStringSubmatch(string(output))
+		if len(data) > 1 {
+			return strconv.Atoi(data[1])
+		}
+		return -1, nil
+	}
+	return -1, ErrServiceIsNotRunning
+}
+
+func (s *sysv) PID() (int, error) {
+	return s.checkRunning()
+}
+
+func (s *sysv) isRunning() (int, bool) {
+	pid, err := s.checkRunning()
+	if err != nil {
+		return -1, false
+	}
+	if pid > 0 {
+		return pid, true
+	}
+	return pid, false
+}
+
+// Status - Get service status
+func (s *sysv) Status() (string, error) {
+	pid, err := s.checkRunning()
+	if err != nil {
+		return "", err
+	}
+	return "running (pid: " + strconv.Itoa(pid) + ")", nil
 }
 
 const sysvScript = `#!/bin/sh

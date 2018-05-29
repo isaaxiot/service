@@ -180,16 +180,12 @@ func (u *procd) Stop() error {
 }
 
 // Status - Get service status
-func (u *procd) Status() error {
-	if !u.IsInstalled() {
-		return ErrServiceIsNotInstalled
-	}
+func (u *procd) Status() (string, error) {
 	pid, err := u.checkRunning()
 	if err != nil {
-		return err
+		return "", err
 	}
-	fmt.Println("(pid: " + strconv.Itoa(pid) + ")")
-	return nil
+	return "(pid: " + strconv.Itoa(pid) + ")", nil
 }
 
 var procdConfig = `#!/bin/sh /etc/rc.common
