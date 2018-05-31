@@ -193,6 +193,9 @@ func (s *darwinLaunchdService) Uninstall() error {
 	if err != nil {
 		return err
 	}
+
+	run("launchctl", "remove", confPath)
+
 	return os.Remove(confPath)
 }
 

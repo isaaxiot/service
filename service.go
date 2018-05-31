@@ -91,7 +91,6 @@ type Config struct {
 	UserName    string            // Run as username.
 	Arguments   []string          // Run with arguments.
 	Envs        map[string]string // Environment variables map.
-	EnvFile     string            // Environment variables as a file.
 
 	// Optional field to specify the executable for service.
 	// If empty the current executable is used.

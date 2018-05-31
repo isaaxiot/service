@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"regexp"
 	"strconv"
+	"strings"
 	"syscall"
 	"text/template"
 )
@@ -48,10 +49,6 @@ func (s *systemd) String() string {
 var errNoUserServiceSystemd = errors.New("User services are not supported on systemd.")
 
 func (s *systemd) configPath() (cp string, err error) {
-	if s.Option.bool(optionUserService, optionUserServiceDefault) {
-		err = errNoUserServiceSystemd
-		return
-	}
 	cp = "/etc/systemd/system/" + s.Config.Name + ".service"
 	return
 }
@@ -81,16 +78,26 @@ func (s *systemd) Install() error {
 		return err
 	}
 
+	cmd := strings.Split(path, " ")
+	if len(cmd) > 1 {
+		path = cmd[0]
+		s.Config.Arguments = append(cmd[1:], s.Config.Arguments...)
+	}
+
 	var to = &struct {
 		*Config
-		Path         string
-		ReloadSignal string
-		PIDFile      string
+		Path              string
+		ReloadSignal      string
+		PIDFile           string
+		StandardOutPath   string
+		StandardErrorPath string
 	}{
 		s.Config,
 		path,
 		s.Option.string(optionReloadSignal, ""),
 		s.Option.string(optionPIDFile, ""),
+		s.Option.string(optionStandardOutPath, ""),
+		s.Option.string(optionStandardErrorPath, ""),
 	}
 
 	err = s.template().Execute(f, to)
@@ -193,7 +200,11 @@ ConditionFileIsExecutable={{.Path|cmdEscape}}
 [Service]
 StartLimitInterval=5
 StartLimitBurst=10
+{{if .StandardOutPath}}
+ExecStart=/bin/sh -c '{{.Path}} {{range .Arguments}} {{.|cmd}}{{end}} >>{{.StandardOutPath}} 2>&1'
+{{else}}
 ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
+{{end}}
 {{if .ChRoot}}RootDirectory={{.ChRoot|cmd}}{{end}}
 {{if .WorkingDirectory}}WorkingDirectory={{.WorkingDirectory|cmdEscape}}{{end}}
 {{if .UserName}}User={{.UserName}}{{end}}
