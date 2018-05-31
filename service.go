@@ -333,6 +333,9 @@ type Service interface {
 	// Status returns nil if the given service is running.
 	// Will return an error if the service is not running or is not present.
 	Status() (string, error)
+	// PID returns pid if the given service is running.
+	// Will return an error if the service is not running or is not present.
+	PID() (int, error)
 }
 
 // ControlAction list valid string texts to use in Control.
