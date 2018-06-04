@@ -10,8 +10,11 @@ import (
 	"os/signal"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
+	"unsafe"
 
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/eventlog"
@@ -389,27 +392,64 @@ func (ws *windowsService) SystemLogger(errs chan<- error) (Logger, error) {
 	return WindowsLogger{el, errs}, nil
 }
 
-func (s *windowsService) Status() error {
+func (ws *windowsService) checkRunning() (int, error) {
 	m, err := mgr.Connect()
 	if err != nil {
-		return err
+		return -1, err
 	}
 	defer m.Disconnect()
 
 	s, err := m.OpenService(ws.Name)
 	if err != nil {
-		return err
+		return -1, err
 	}
 	defer s.Close()
 
 	status, err := s.Query()
 	if err != nil {
-		return err
+		return -1, err
 	}
 
-	if status != svc.Running {
-		return ErrServiceIsNotRunning
+	if status.State != svc.Running {
+		return -1, ErrServiceIsNotRunning
 	}
 
-	return nil
+	var bytesNeeded uint32
+	var buf []byte
+	var p *byte
+	for {
+		if len(buf) > 0 {
+			p = &buf[0]
+		}
+		err = windows.QueryServiceStatusEx(m.Handle, windows.SC_STATUS_PROCESS_INFO, p, uint32(len(buf)), &bytesNeeded)
+		if err == nil {
+			break
+		}
+		if err != syscall.ERROR_MORE_DATA {
+			return -1, err
+		}
+		if bytesNeeded <= uint32(len(buf)) {
+			return -1, err
+		}
+		buf = make([]byte, bytesNeeded)
+	}
+	fmt.Println(buf, string(buf))
+	var data *windows.SERVICE_STATUS_PROCESS
+	data = (*windows.SERVICE_STATUS_PROCESS)(unsafe.Pointer(&buf[0]))
+	if data != nil {
+		return int(data.ProcessId), nil
+	}
+	return 0, fmt.Errorf("Cast to service status failed")
+}
+
+func (ws *windowsService) PID() (int, error) {
+	return ws.checkRunning()
+}
+
+func (ws *windowsService) Status() (string, error) {
+	pid, err := ws.checkRunning()
+	if err != nil {
+		return "", err
+	}
+	return "running (pid: " + strconv.Itoa(pid) + ")", nil
 }
