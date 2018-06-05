@@ -157,6 +157,10 @@ func (s *sysv) Restart() error {
 	return s.Start()
 }
 
+func (s *sysv) Update() error {
+	return nil
+}
+
 // Check service is running
 func (s *sysv) checkRunning() (int, error) {
 	output, err := exec.Command("service", s.Name, "status").Output()

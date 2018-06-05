@@ -256,6 +256,11 @@ func (s *darwinLaunchdService) PID() (int, error) {
 	return s.checkRunning()
 }
 
+func (s *darwinLaunchdService) Update() error {
+	s.Uninstall()
+	return s.Install()
+}
+
 // Check service is running
 func (s *darwinLaunchdService) checkRunning() (int, error) {
 	output, err := exec.Command("launchctl", "list", s.Name).Output()

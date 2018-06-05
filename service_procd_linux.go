@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"regexp"
 	"strconv"
+	"strings"
 	"syscall"
 	"text/template"
 )
@@ -33,7 +34,7 @@ type procd struct {
 	*Config
 }
 
-// Standard service path for systemV daemons
+// Standard service path for procd daemons
 func (u *procd) servicePath() string {
 	return "/etc/init.d/" + u.Name
 }
@@ -80,9 +81,15 @@ func (u *procd) Install() error {
 	}
 	defer file.Close()
 
-	templ, err := template.New("procdConfig").Parse(procdConfig)
+	templ, err := template.New("procdConfig").Funcs(template.FuncMap{"StringsJoin": strings.Join}).Parse(procdConfig)
 	if err != nil {
 		return err
+	}
+	envs := make([]string, 0, len(u.Config.Envs))
+	if len(u.Config.Envs) > 0 {
+		for k, v := range u.Config.Envs {
+			envs = append(envs, fmt.Sprintf(`%s="%s"`, k, v))
+		}
 	}
 
 	if err := templ.Execute(
@@ -91,11 +98,14 @@ func (u *procd) Install() error {
 			Name, Description string
 			Args, WorkingDir  string
 			Cmd               string
+			Envs              []string
 		}{
 			Name:        u.Name,
 			Cmd:         u.Executable,
 			Description: u.Description,
-			WorkingDir:  u.WorkingDirectory},
+			WorkingDir:  u.WorkingDirectory,
+			Envs:        envs,
+		},
 	); err != nil {
 		return err
 	}
@@ -104,10 +114,8 @@ func (u *procd) Install() error {
 		return err
 	}
 	file.Close()
-	if u.Name == "isaaxd" {
-		if err := exec.Command(u.servicePath(), "enable").Run(); err != nil {
-			return err
-		}
+	if err := run(u.servicePath(), "enable"); err != nil {
+		return err
 	}
 
 	return nil
@@ -140,6 +148,11 @@ func (u *procd) Restart() error {
 		return err
 	}
 	return nil
+}
+
+func (u *procd) Update() error {
+	u.Uninstall()
+	return u.Install()
 }
 
 func (u *procd) PID() (int, error) {
@@ -202,8 +215,13 @@ start_service() {
   # respawn automatically if something died, be careful if you have an alternative process supervisor
   # if process dies sooner than respawn_threshold, it is considered crashed and after 5 retries the service is stopped
   procd_set_param respawn
-
   procd_set_param limits core="unlimited"  # If you need to set ulimit for your process
+
+{{if len(.Envs)}}
+  procd_set_param env \
+  {{ StringsJoin .Envs "\\\n " }}
+{{end}}
+
   procd_close_instance
 }
 `

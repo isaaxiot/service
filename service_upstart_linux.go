@@ -197,6 +197,10 @@ func (s *upstart) Restart() error {
 	return s.Start()
 }
 
+func (s *upstart) Update() error {
+	return nil
+}
+
 // Check service is running
 func (s *upstart) checkRunning() (int, error) {
 	output, err := exec.Command("status", s.Name).Output()

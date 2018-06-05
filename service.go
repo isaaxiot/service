@@ -316,6 +316,10 @@ type Service interface {
 	// greater rights. Will return an error if the service is not present.
 	Uninstall() error
 
+	// Update will try to update service file.
+	// Will return an error if the service is not present.
+	Update() error
+
 	// Opens and returns a system logger. If the user program is running
 	// interactively rather then as a service, the returned logger will write to
 	// os.Stderr. If errs is non-nil errors will be sent on errs as well as

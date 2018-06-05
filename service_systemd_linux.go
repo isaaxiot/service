@@ -193,6 +193,18 @@ func (s *systemd) Status() (string, error) {
 	return "running (pid: " + strconv.Itoa(pid) + ")", nil
 }
 
+func (s *systemd) Update() error {
+	if err := run("systemctl", "daemon-reload"); err != nil {
+		return err
+	}
+
+	if err := run("systemctl", "enable", s.Name+".service"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 const systemdScript = `[Unit]
 Description={{.Description}}
 ConditionFileIsExecutable={{.Path|cmdEscape}}

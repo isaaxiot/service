@@ -247,6 +247,11 @@ func (ws *windowsService) Uninstall() error {
 	return nil
 }
 
+func (ws *windowsService) Update() error {
+	// no need to recreate service
+	return nil
+}
+
 func (ws *windowsService) Run() error {
 	ws.setError(nil)
 	if !interactive {
