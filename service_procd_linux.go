@@ -223,8 +223,10 @@ start_service() {
   # if process dies sooner than respawn_threshold, it is considered crashed and after 5 retries the service is stopped
   procd_set_param respawn
   procd_set_param limits core="unlimited"  # If you need to set ulimit for your process
+  procd_set_param stdout 1 # forward stdout of the command to logd
+  procd_set_param stderr 1 # same for stderr
 
-{{if len(.Envs)}}
+{{if len .Envs}}
   procd_set_param env \
   {{ StringsJoin .Envs "\\\n " }}
 {{end}}
