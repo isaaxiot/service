@@ -79,7 +79,7 @@ func (u *procd) Install() error {
 	srvPath := u.servicePath()
 
 	if u.IsInstalled() {
-		return fmt.Errorf("Init already exists: %s", srvPath)
+		u.Uninstall()
 	}
 
 	file, err := os.Create(srvPath)
@@ -131,6 +131,8 @@ func (u *procd) Install() error {
 // Uninstall removes the service
 func (u *procd) Uninstall() error {
 	u.Stop()
+
+	run(u.servicePath(), "disable")
 
 	return os.Remove(u.servicePath())
 }
@@ -222,9 +224,9 @@ start_service() {
   # respawn automatically if something died, be careful if you have an alternative process supervisor
   # if process dies sooner than respawn_threshold, it is considered crashed and after 5 retries the service is stopped
   procd_set_param respawn
-  procd_set_param limits core="unlimited"  # If you need to set ulimit for your process
-  procd_set_param stdout 1 # forward stdout of the command to logd
-  procd_set_param stderr 1 # same for stderr
+  procd_set_param limits core="unlimited"
+  procd_set_param stdout 1
+  procd_set_param stderr 1
 
 {{if len .Envs}}
   procd_set_param env \
