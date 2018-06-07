@@ -121,10 +121,8 @@ func (u *procd) Install() error {
 		return err
 	}
 	file.Close()
-	if err := run(u.servicePath(), "enable"); err != nil {
-		return err
-	}
 
+	run(u.servicePath(), "enable")
 	return nil
 }
 
