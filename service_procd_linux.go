@@ -12,6 +12,13 @@ import (
 	"text/template"
 )
 
+func isProcd() bool {
+	if _, err := os.Stat("/sbin/procd"); err == nil {
+		return true
+	}
+	return false
+}
+
 func newProcdService(i Interface, c *Config) (Service, error) {
 	u := &procd{
 		i:      i,
