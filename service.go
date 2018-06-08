@@ -234,7 +234,7 @@ func newSystem() System {
 // SystemServices are considered in the order they are suggested.
 // Calling this may change what Interactive and Platform return.
 func ChooseSystem(a ...System) {
-	systemRegistry = a
+	systemRegistry = append(systemRegistry, a...)
 	system = newSystem()
 }
 
