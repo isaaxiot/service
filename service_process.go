@@ -154,7 +154,10 @@ func (s *supervisedService) checkRunning() (int, error) {
 	}
 	pid := p.GetPid()
 	if pid == 0 {
-		return 0, fmt.Errorf("not running")
+		if err := p.Attach(); err != nil {
+			return 0, err
+		}
+		pid = p.GetPid()
 	}
 	return pid, nil
 }

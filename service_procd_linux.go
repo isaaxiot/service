@@ -2,10 +2,10 @@ package service
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
-	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -60,18 +60,25 @@ func (u *procd) ServiceName() string {
 
 // Check service is running
 func (u *procd) checkRunning() (int, error) {
-	output, err := exec.Command(u.servicePath(), "status").Output()
-	if err == nil {
-		if matched, err := regexp.MatchString("running", string(output)); err == nil && matched {
-			reg := regexp.MustCompile("running ([0-9]+)")
-			data := reg.FindStringSubmatch(string(output))
-			if len(data) > 1 {
-				return strconv.Atoi(data[1])
-			}
-			return -1, nil
-		}
+	pidfile := fmt.Sprintf("/var/run/%s.pid", u.Name)
+	pid, err := ioutil.ReadFile(pidfile)
+	if err != nil {
+		return -1, ErrServiceIsNotRunning
 	}
-	return -1, ErrServiceIsNotRunning
+	if string(pid) == "" {
+		os.Remove(pidfile)
+		return -1, ErrServiceIsNotRunning
+	}
+	intpid, _ := strconv.Atoi(strings.TrimSpace(string(pid)))
+	proc, err := os.FindProcess(intpid)
+	if err == nil {
+		err = proc.Signal(syscall.Signal(0))
+	}
+	if err != nil {
+		os.Remove(pidfile)
+		return -1, err
+	}
+	return intpid, nil
 }
 
 // Install the service
@@ -225,6 +232,7 @@ start_service() {
   procd_set_param limits core="unlimited"
   procd_set_param stdout 1
   procd_set_param stderr 1
+  procd_set_param pidfile /var/run/{{.Name}}.pid
 
 {{if len .Envs}}
   procd_set_param env \
