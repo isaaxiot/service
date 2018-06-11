@@ -444,7 +444,7 @@ func (ws *windowsService) checkRunning() (int, error) {
 	if data != nil {
 		return int(data.ProcessId), nil
 	}
-	return 0, fmt.Errorf("Cast to service status failed")
+	return 0, fmt.Errorf("invalid service status response")
 }
 
 func (ws *windowsService) PID() (int, error) {

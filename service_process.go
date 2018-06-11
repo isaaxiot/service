@@ -59,7 +59,7 @@ func (s *supervisedService) parseConfig() *process.ConfigEntry {
 			"redirect_stderr": "true",
 			"autostart":       "true",
 			"autorestart":     "true",
-			"startsecs":       "0",
+			"startretries":    "10",
 		},
 		Envs: s.Envs,
 	}
@@ -110,7 +110,10 @@ func (s *supervisedService) Run() error {
 func (s *supervisedService) Start() error {
 	p := s.procMgr.Find(s.Name)
 	if p == nil {
-		return nil
+		return fmt.Errorf("couldn't find program")
+	}
+	if s.Config.Executable == "" {
+		return fmt.Errorf("empty executable")
 	}
 	if err := p.Attach(); err != nil {
 		p.Start(false)
@@ -146,9 +149,12 @@ func (s *supervisedService) SystemLogger(errs chan<- error) (Logger, error) {
 
 func (s *supervisedService) checkRunning() (int, error) {
 	p := s.procMgr.Find(s.Name)
+	if p == nil {
+		return -1, fmt.Errorf("couldn't find program")
+	}
 	pid := p.GetPid()
 	if pid == 0 {
-		return 0, fmt.Errorf("Cast to service status failed")
+		return 0, fmt.Errorf("not running")
 	}
 	return pid, nil
 }

@@ -91,7 +91,6 @@ func NewProcess(config *ConfigEntry) *Process {
 }
 
 func (p *Process) Attach() error {
-	log.Debug("Attaching to existing process")
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -130,7 +129,7 @@ func (p *Process) Attach() error {
 }
 
 func (p *Process) Start(wait bool) {
-	log.WithFields(log.Fields{"program": p.GetName()}).Info("try to start program")
+	log.WithFields(log.Fields{"program": p.GetName()}).Info("trying to start")
 	p.lock.Lock()
 	if p.inStart {
 		log.WithFields(log.Fields{"program": p.GetName()}).Info("Don't start program again, program is already started")
@@ -174,13 +173,14 @@ func (p *Process) Start(wait bool) {
 				break
 			}
 			if !p.isAutoRestart() {
-				log.WithFields(log.Fields{"program": p.GetName()}).Info("Don't start the stopped program because its autorestart flag is false")
+				log.WithFields(log.Fields{"program": p.GetName()}).Info("Don't start the stopped program because it's autorestart flag is false")
 				break
 			}
 			if p.retryTimes >= p.getStartRetries() {
 				log.WithFields(log.Fields{"program": p.GetName()}).Info("Don't start the stopped program because its retry times ", p.retryTimes, " is greater than start retries ", p.getStartRetries())
 				break
 			}
+			time.Sleep(100 * time.Microsecond)
 		}
 		p.lock.Lock()
 		p.inStart = false
@@ -406,7 +406,7 @@ func (p *Process) run(finishCb func()) {
 	p.changeStateTo(STARTING)
 	err = p.cmd.Start()
 	if err != nil {
-		log.WithFields(log.Fields{"program": p.GetName()}).Errorf("fail to start program with error:%v", err)
+		log.WithFields(log.Fields{"program": p.GetName()}).Errorf("fail to start program with error: %v", err)
 		p.changeStateTo(FATAL)
 		p.stopTime = time.Now()
 		p.lock.Unlock()
@@ -547,7 +547,6 @@ func (p *Process) setUser() error {
 //send signal to process to stop it
 func (p *Process) Stop(wait bool) {
 	p.lock.RLock()
-	log.Warn("removing on stop")
 	os.Remove(p.pidfile)
 	p.stopByUser = true
 	p.lock.RUnlock()
