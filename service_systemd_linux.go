@@ -207,7 +207,6 @@ func (s *systemd) Update() error {
 
 const systemdScript = `[Unit]
 Description={{.Description}}
-ConditionFileIsExecutable={{.Path|cmdEscape}}
 
 [Service]
 StartLimitInterval=5

@@ -233,7 +233,7 @@ func (p *Process) GetExitstatus() int {
 func (p *Process) GetPid() int {
 	p.lock.Lock()
 	defer p.lock.Unlock()
-
+	log.WithField("program", p.GetName()).Debug(p.state)
 	if p.state == STOPPED || p.state == FATAL || p.state == UNKNOWN || p.state == EXITED || p.state == BACKOFF {
 		return 0
 	}
