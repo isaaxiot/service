@@ -87,6 +87,7 @@ func (s *systemd) Install() error {
 	var to = &struct {
 		*Config
 		Path              string
+		Args              string
 		ReloadSignal      string
 		PIDFile           string
 		StandardOutPath   string
@@ -94,6 +95,7 @@ func (s *systemd) Install() error {
 	}{
 		s.Config,
 		path,
+		strings.Join(s.Config.Arguments, " "),
 		s.Option.string(optionReloadSignal, ""),
 		s.Option.string(optionPIDFile, ""),
 		s.Option.string(optionStandardOutPath, ""),
@@ -212,7 +214,7 @@ Description={{.Description}}
 StartLimitInterval=5
 StartLimitBurst=10
 {{if .StandardOutPath}}
-ExecStart=/bin/sh -c '{{.Path}} {{range .Arguments}} {{.|cmd}}{{end}} >>{{.StandardOutPath}} 2>&1'
+ExecStart=/bin/sh -c '{{.Path}} {{.Args}} >>{{.StandardOutPath}} 2>&1'
 {{else}}
 ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
 {{end}}
