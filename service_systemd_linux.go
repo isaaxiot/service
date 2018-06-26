@@ -213,7 +213,9 @@ Description={{.Description}}
 [Service]
 StartLimitInterval=5
 StartLimitBurst=10
-{{if .StandardOutPath}}
+{{if and .StandardErrorPath .StandardOutPath}}
+ExecStart=/bin/sh -c '{{.Path}} {{.Args}} 2>>{{.StandardErrorPath}} 1>>{{.StandardOutPath}}'
+{{else if .StandardOutPath}}
 ExecStart=/bin/sh -c '{{.Path}} {{.Args}} >>{{.StandardOutPath}} 2>&1'
 {{else}}
 ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}

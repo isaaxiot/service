@@ -48,15 +48,20 @@ func (s *supervisedService) String() string {
 }
 
 func (s *supervisedService) parseConfig() *process.ConfigEntry {
+	redirect := "false"
+	stderr := s.Option.string(optionStandardErrorPath, "")
+	if stderr == "" {
+		redirect = "true"
+	}
 	return &process.ConfigEntry{
 		Name: s.Name,
 		KeyValues: map[string]string{
 			"command":         s.Config.Executable,
 			"stdout_logfile":  s.Option.string(optionStandardOutPath, ""),
-			"stderr_logfile":  s.Option.string(optionStandardErrorPath, ""),
+			"stderr_logfile":  stderr,
 			"user":            s.Config.UserName,
 			"directory":       s.Config.WorkingDirectory,
-			"redirect_stderr": "true",
+			"redirect_stderr": redirect,
 			"autostart":       "true",
 			"autorestart":     "true",
 			"startretries":    "10",
